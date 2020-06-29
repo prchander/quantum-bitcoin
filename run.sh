@@ -37,10 +37,13 @@ else
 	
 	# Only open the console if not already open
 	if ! wmctrl -l | grep -q "Custom Bitcoin Console"; then
-		if ! [ -x "$(command -v mate-terminal)" ]; then
-			gnome-terminal -t "Custom Bitcoin Console" -- python3 bitcoin_console.py
-		else
+		# Find the right terminal
+		if [ -x "$(command -v mate-terminal)" ]; then
 			mate-terminal -t "Custom Bitcoin Console" -- python3 bitcoin_console.py
+		elif [ -x "$(command -v xfce4-terminal)" ]; then
+			xfce4-terminal -t "Custom Bitcoin Console" -- python3 bitcoin_console.py
+		else
+			gnome-terminal -t "Custom Bitcoin Console" -- python3 bitcoin_console.py
 		fi
 	fi
 
