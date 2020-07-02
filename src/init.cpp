@@ -31,6 +31,7 @@
 #include <net_processing.h>
 #include <netbase.h>
 #include <node/context.h>
+#include <node/ui_interface.h>
 #include <policy/feerate.h>
 #include <policy/fees.h>
 #include <policy/policy.h>
@@ -48,7 +49,6 @@
 #include <torcontrol.h>
 #include <txdb.h>
 #include <txmempool.h>
-#include <ui_interface.h>
 #include <util/asmap.h>
 #include <util/moneystr.h>
 #include <util/string.h>
@@ -1317,8 +1317,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node)
     node.scheduler = MakeUnique<CScheduler>();
 
     // Start the lightweight task scheduler thread
-    CScheduler::Function serviceLoop = [&node]{ node.scheduler->serviceQueue(); };
-    threadGroup.create_thread(std::bind(&TraceThread<CScheduler::Function>, "scheduler", serviceLoop));
+    threadGroup.create_thread([&] { TraceThread("scheduler", [&] { node.scheduler->serviceQueue(); }); });
 
     // Gather some entropy once per minute.
     node.scheduler->scheduleEvery([]{
