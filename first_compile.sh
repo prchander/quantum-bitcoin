@@ -19,4 +19,4 @@ sudo apt-get install libminiupnpc-dev
 ./autogen.sh
 ./configure --with-miniupnpc --enable-upnp-default --with-incompatible-bdb #--disablewallet # --prefix=`pwd`/depends/x86_64-linux-gnu
 make -j8
-./run.sh
+bash ./run.sh
