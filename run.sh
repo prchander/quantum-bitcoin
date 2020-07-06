@@ -54,4 +54,5 @@ else
 	else
 		echo
 		src/bitcoind -regtest -datadir="$dir"
+	fi
 fi
