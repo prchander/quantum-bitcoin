@@ -25,6 +25,8 @@ if [ ! -f "$dir/bitcoin.conf" ]; then
 	#echo "rpcallowip=0.0.0.0/0" >> "$dir/bitcoin.conf"
 	#echo "rpcbind = 0.0.0.0:8332" >> "$dir/bitcoin.conf"
 	#echo "upnp=1" >> "$dir/bitcoin.conf"
+	echo "fallbackfee=1" >> "$dir/bitcoin.conf"
+	echo "maxtxfee=1000" >> "$dir/bitcoin.conf"
 	echo "listen=1" >> "$dir/bitcoin.conf"
 fi
 
