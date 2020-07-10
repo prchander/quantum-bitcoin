@@ -35,6 +35,7 @@ def initialize():
 	check = bitcoin('getaddressesbylabel signature_verification')
 	if check == '':
 		address = bitcoin('getnewaddress signature_verification')
+		bitcoin(f'generatetoaddress 1 {address}')
 	else:
 		parsed = json.loads(check)
 		print(f'Address found: {parsed}')

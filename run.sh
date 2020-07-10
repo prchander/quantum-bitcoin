@@ -8,6 +8,10 @@ if [ -d "/media/sf_Bitcoin/blocks/" ]; then
 else
 	dir="$HOME/.bitcoin/"
 	pruned="true"
+
+	if [ ! -d "$dir" ]; then
+		mkdir "$dir"
+	fi
 fi
 
 echo "datadir = $dir"
