@@ -25,8 +25,8 @@
 #include <uint256.h>
 
 #include <atomic>
+#include <cstdint>
 #include <deque>
-#include <stdint.h>
 #include <thread>
 #include <memory>
 #include <condition_variable>
@@ -482,7 +482,7 @@ void Discover();
 void StartMapPort();
 void InterruptMapPort();
 void StopMapPort();
-unsigned short GetListenPort();
+uint16_t GetListenPort();
 
 struct CombinerAll
 {
@@ -803,7 +803,7 @@ public:
     // There is no final sorting before sending, as they are always sent immediately
     // and in the order requested.
     std::vector<uint256> vInventoryBlockToSend GUARDED_BY(cs_inventory);
-    RecursiveMutex cs_inventory;
+    Mutex cs_inventory;
 
     struct TxRelay {
         mutable RecursiveMutex cs_filter;
@@ -980,18 +980,6 @@ public:
         if (!m_tx_relay->filterInventoryKnown.contains(hash)) {
             m_tx_relay->setInventoryTxToSend.insert(hash);
         }
-    }
-
-    void PushBlockInventory(const uint256& hash)
-    {
-        LOCK(cs_inventory);
-        vInventoryBlockToSend.push_back(hash);
-    }
-
-    void PushBlockHash(const uint256 &hash)
-    {
-        LOCK(cs_inventory);
-        vBlockHashesToAnnounce.push_back(hash);
     }
 
     void CloseSocketDisconnect();
