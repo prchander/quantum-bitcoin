@@ -1,2 +1,2 @@
 make -j8
-bash ./run.sh gui
+bash ./run.sh # gui
