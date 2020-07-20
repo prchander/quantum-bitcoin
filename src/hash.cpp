@@ -6,14 +6,17 @@
 #include <crypto/common.h>
 #include <crypto/hmac_sha512.h>
 
+#include <logging.h>
 
 inline uint32_t ROTL32(uint32_t x, int8_t r)
 {
+    LogPrintf("%s","In hash.cpp in ROTL 32");
     return (x << r) | (x >> (32 - r));
 }
 
 unsigned int MurmurHash3(unsigned int nHashSeed, const std::vector<unsigned char>& vDataToHash)
 {
+    LogPrintf("%s","In hash.cpp in murmur hash 3");
     // The following is MurmurHash3 (x86_32), see http://code.google.com/p/smhasher/source/browse/trunk/MurmurHash3.cpp
     uint32_t h1 = nHashSeed;
     const uint32_t c1 = 0xcc9e2d51;
@@ -70,6 +73,7 @@ unsigned int MurmurHash3(unsigned int nHashSeed, const std::vector<unsigned char
 
 void BIP32Hash(const ChainCode &chainCode, unsigned int nChild, unsigned char header, const unsigned char data[32], unsigned char output[64])
 {
+    LogPrintf("%s","In hash.cpp BIP 32 hash");
     unsigned char num[4];
     num[0] = (nChild >> 24) & 0xFF;
     num[1] = (nChild >> 16) & 0xFF;

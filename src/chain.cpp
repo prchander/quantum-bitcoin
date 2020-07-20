@@ -4,11 +4,13 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chain.h>
+#include <logging.h>
 
 /**
  * CChain implementation
  */
 void CChain::SetTip(CBlockIndex *pindex) {
+    LogPrintf("%s","In chain.cpp in set tips");
     if (pindex == nullptr) {
         vChain.clear();
         return;
@@ -21,6 +23,7 @@ void CChain::SetTip(CBlockIndex *pindex) {
 }
 
 CBlockLocator CChain::GetLocator(const CBlockIndex *pindex) const {
+    LogPrintf("%s","In chain.cpp in get locator");
     int nStep = 1;
     std::vector<uint256> vHave;
     vHave.reserve(32);
@@ -49,6 +52,7 @@ CBlockLocator CChain::GetLocator(const CBlockIndex *pindex) const {
 }
 
 const CBlockIndex *CChain::FindFork(const CBlockIndex *pindex) const {
+    LogPrintf("%s","In chain.cpp in find fork");
     if (pindex == nullptr) {
         return nullptr;
     }
@@ -72,6 +76,8 @@ int static inline InvertLowestOne(int n) { return n & (n - 1); }
 
 /** Compute what height to jump back to with the CBlockIndex::pskip pointer. */
 int static inline GetSkipHeight(int height) {
+    LogPrintf("%s","In chain.cpp in get skip height");
+
     if (height < 2)
         return 0;
 
@@ -136,6 +142,8 @@ arith_uint256 GetBlockProof(const CBlockIndex& block)
 
 int64_t GetBlockProofEquivalentTime(const CBlockIndex& to, const CBlockIndex& from, const CBlockIndex& tip, const Consensus::Params& params)
 {
+    LogPrintf("%s","In chain.cpp in get block proof equivalant time");
+
     arith_uint256 r;
     int sign = 1;
     if (to.nChainWork > from.nChainWork) {
