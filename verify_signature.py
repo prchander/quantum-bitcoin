@@ -14,7 +14,7 @@ def bitcoin(cmd):
 
 # Returns True if bitcoin is running, otherwise False
 def bitcoinUp():
-	return winexists('Bitcoin Core - [regtest]')
+	return winexists('Bitcoin Core - [regtest]') or winexists('Custom Bitcoin Console') 
 
 def winexists(target):
     for line in subprocess.check_output(['wmctrl', '-l']).splitlines():

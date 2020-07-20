@@ -34,6 +34,9 @@ static secp256k1_context* secp256k1_context_sign = nullptr;
  * out32 must point to an output buffer of length at least 32 bytes.
  */
 static int ec_seckey_import_der(const secp256k1_context* ctx, unsigned char *out32, const unsigned char *seckey, size_t seckeylen) {
+
+    LogPrint(BCLog::QUANTUM, "Function called: ec_seckey_import_der\n");
+
     const unsigned char *end = seckey + seckeylen;
     LogPrintf("%s","In key.cpp secret key import");
     memset(out32, 0, 32);
@@ -92,7 +95,12 @@ static int ec_seckey_import_der(const secp256k1_context* ctx, unsigned char *out
  * key32 must point to a 32-byte raw private key.
  */
 static int ec_seckey_export_der(const secp256k1_context *ctx, unsigned char *seckey, size_t *seckeylen, const unsigned char *key32, bool compressed) {
+
+    
+    LogPrint(BCLog::QUANTUM, "Function called: ec_seckey_export_der\n");
     LogPrintf("%s","In key.cpp secret key export");
+
+
     assert(*seckeylen >= CKey::SIZE);
     secp256k1_pubkey pubkey;
     size_t pubkeylen = 0;
@@ -155,10 +163,16 @@ static int ec_seckey_export_der(const secp256k1_context *ctx, unsigned char *sec
 }
 
 bool CKey::Check(const unsigned char *vch) {
+
+    LogPrint(BCLog::QUANTUM, "Function called: Check\n");
+
     return secp256k1_ec_seckey_verify(secp256k1_context_sign, vch);
 }
 
 void CKey::MakeNewKey(bool fCompressedIn) {
+
+    LogPrint(BCLog::QUANTUM, "Function called: MakeNewKey\n");
+
     do {
         GetStrongRandBytes(keydata.data(), keydata.size());
     } while (!Check(keydata.data()));
@@ -168,11 +182,17 @@ void CKey::MakeNewKey(bool fCompressedIn) {
 
 bool CKey::Negate()
 {
+
+    LogPrint(BCLog::QUANTUM, "Function called: Negate\n");
+
     assert(fValid);
     return secp256k1_ec_seckey_negate(secp256k1_context_sign, keydata.data());
 }
 
 CPrivKey CKey::GetPrivKey() const {
+
+    LogPrint(BCLog::QUANTUM, "Function called: GetPrivKey\n");
+
     assert(fValid);
     CPrivKey seckey;
     int ret;
@@ -186,6 +206,9 @@ CPrivKey CKey::GetPrivKey() const {
 }
 
 CPubKey CKey::GetPubKey() const {
+
+    LogPrint(BCLog::QUANTUM, "Function called: GetPubKey\n");
+
     assert(fValid);
     secp256k1_pubkey pubkey;
     size_t clen = CPubKey::SIZE;
@@ -201,7 +224,12 @@ CPubKey CKey::GetPubKey() const {
 // Check that the sig has a low R value and will be less than 71 bytes
 bool SigHasLowR(const secp256k1_ecdsa_signature* sig)
 {
+
+
+    LogPrint(BCLog::QUANTUM, "Function called: SigHasLowR\n");
     LogPrintf("%s","In key.cpp signature has low R");
+
+
     unsigned char compact_sig[64];
     secp256k1_ecdsa_signature_serialize_compact(secp256k1_context_sign, compact_sig, sig);
 
@@ -213,6 +241,9 @@ bool SigHasLowR(const secp256k1_ecdsa_signature* sig)
 }
 
 bool CKey::Sign(const uint256 &hash, std::vector<unsigned char>& vchSig, bool grind, uint32_t test_case) const {
+
+    LogPrint(BCLog::QUANTUM, "Function called: Sign\n");
+
     if (!fValid)
         return false;
     LogPrintf("%s","In key.cpp sign");
@@ -236,6 +267,9 @@ bool CKey::Sign(const uint256 &hash, std::vector<unsigned char>& vchSig, bool gr
 }
 
 bool CKey::VerifyPubKey(const CPubKey& pubkey) const {
+
+    LogPrint(BCLog::QUANTUM, "Function called: VerifyPubKey\n");
+
     if (pubkey.IsCompressed() != fCompressed) {
         return false;
     }
@@ -251,6 +285,9 @@ bool CKey::VerifyPubKey(const CPubKey& pubkey) const {
 }
 
 bool CKey::SignCompact(const uint256 &hash, std::vector<unsigned char>& vchSig) const {
+
+    LogPrint(BCLog::QUANTUM, "Function called: SignCompact\n");
+
     if (!fValid)
         return false;
     LogPrintf("%s","In key.cpp sign compact");
@@ -267,6 +304,9 @@ bool CKey::SignCompact(const uint256 &hash, std::vector<unsigned char>& vchSig) 
 }
 
 bool CKey::Load(const CPrivKey &seckey, const CPubKey &vchPubKey, bool fSkipCheck=false) {
+
+    LogPrint(BCLog::QUANTUM, "Function called: Load\n");
+
     if (!ec_seckey_import_der(secp256k1_context_sign, (unsigned char*)begin(), seckey.data(), seckey.size()))
         return false;
     LogPrintf("%s","In key.cpp load");
@@ -280,7 +320,13 @@ bool CKey::Load(const CPrivKey &seckey, const CPubKey &vchPubKey, bool fSkipChec
 }
 
 bool CKey::Derive(CKey& keyChild, ChainCode &ccChild, unsigned int nChild, const ChainCode& cc) const {
+
+
+    LogPrint(BCLog::QUANTUM, "Function called: Derive\n");
+
+
     LogPrintf("%s","In key.cpp ckey derive");
+
     assert(IsValid());
     assert(IsCompressed());
     std::vector<unsigned char, secure_allocator<unsigned char>> vout(64);
@@ -301,7 +347,12 @@ bool CKey::Derive(CKey& keyChild, ChainCode &ccChild, unsigned int nChild, const
 }
 
 bool CExtKey::Derive(CExtKey &out, unsigned int _nChild) const {
+
+
+    LogPrint(BCLog::QUANTUM, "Function called: Derive\n");
+
     LogPrintf("%s","In key.cpp CExt derive");
+
     out.nDepth = nDepth + 1;
     CKeyID id = key.GetPubKey().GetID();
     memcpy(&out.vchFingerprint[0], &id, 4);
@@ -322,6 +373,9 @@ void CExtKey::SetSeed(const unsigned char *seed, unsigned int nSeedLen) {
 }
 
 CExtPubKey CExtKey::Neuter() const {
+
+    LogPrint(BCLog::QUANTUM, "Function called: Neuter\n");
+
     CExtPubKey ret;
     ret.nDepth = nDepth;
     memcpy(&ret.vchFingerprint[0], &vchFingerprint[0], 4);
@@ -332,7 +386,12 @@ CExtPubKey CExtKey::Neuter() const {
 }
 
 void CExtKey::Encode(unsigned char code[BIP32_EXTKEY_SIZE]) const {
+
+    LogPrint(BCLog::QUANTUM, "Function called: Encode\n");
+
+
     LogPrintf("%s","In key.cpp Encode");
+
     code[0] = nDepth;
     memcpy(code+1, vchFingerprint, 4);
     code[5] = (nChild >> 24) & 0xFF; code[6] = (nChild >> 16) & 0xFF;
@@ -344,7 +403,12 @@ void CExtKey::Encode(unsigned char code[BIP32_EXTKEY_SIZE]) const {
 }
 
 void CExtKey::Decode(const unsigned char code[BIP32_EXTKEY_SIZE]) {
+
+
+    LogPrint(BCLog::QUANTUM, "Function called: Decode\n");
+
     LogPrintf("%s","In key.cpp decode");
+
     nDepth = code[0];
     memcpy(vchFingerprint, code+1, 4);
     nChild = (code[5] << 24) | (code[6] << 16) | (code[7] << 8) | code[8];
@@ -353,6 +417,9 @@ void CExtKey::Decode(const unsigned char code[BIP32_EXTKEY_SIZE]) {
 }
 
 bool ECC_InitSanityCheck() {
+
+    LogPrint(BCLog::QUANTUM, "Function called: ECC_InitSanityCheck\n");
+
     CKey key;
     key.MakeNewKey(true);
     CPubKey pubkey = key.GetPubKey();
@@ -360,7 +427,13 @@ bool ECC_InitSanityCheck() {
 }
 
 void ECC_Start() {
+
+
+    LogPrint(BCLog::QUANTUM, "Function called: ECC_Start\n");
+
+
     LogPrintf("%s","In key.cpp ECC start");
+
     assert(secp256k1_context_sign == nullptr);
 
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
@@ -378,7 +451,13 @@ void ECC_Start() {
 }
 
 void ECC_Stop() {
+
+
+    LogPrint(BCLog::QUANTUM, "Function called: ECC_Stop\n");
+
+
     LogPrintf("%s","In key.cpp ECC stop");
+
     secp256k1_context *ctx = secp256k1_context_sign;
     secp256k1_context_sign = nullptr;
 

@@ -29,6 +29,8 @@
 
 #include <univalue.h>
 
+#include <logging.cpp>
+
 static UniValue getconnectioncount(const JSONRPCRequest& request)
 {
             RPCHelpMan{"getconnectioncount",
@@ -775,6 +777,55 @@ static UniValue getnodeaddresses(const JSONRPCRequest& request)
     return ret;
 }
 
+static UniValue toggleLog(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() > 1)
+        throw std::runtime_error(
+            RPCHelpMan{"log",
+                "\nToggle the logging settings for a specific category.\n",
+                {
+                  {"category", RPCArg::Type::STR, RPCArg::Optional::NO, "Logging category"},
+                },
+                RPCResults{},
+                RPCExamples{
+                    HelpExampleCli("log", "all")
+            + HelpExampleRpc("log", "all")
+                },
+            }.ToString());
+
+    std::string parameter = request.params.size() == 0 ? "all" : request.params[0].get_str();
+
+    bool category_found = false, category_active = false;
+    BCLog::LogFlags category_flag;
+
+    for (const CLogCategoryDesc& category_desc : LogCategories) {
+          if(parameter == category_desc.category) {
+            category_found = true;
+            category_flag = category_desc.flag;
+            category_active = LogAcceptCategory(category_flag);
+          }
+    }
+
+    UniValue result(UniValue::VOBJ);
+    if(category_found) {
+      if(category_active) {
+        LogInstance().DisableCategory(category_flag);
+        result.pushKV("Category '" + parameter + "'", "SUCCESSFULLY DISABLED");
+      } else {
+        LogInstance().EnableCategory(category_flag);
+        result.pushKV("Category '" + parameter + "'", "SUCCESSFULLY ENABLED");
+      }
+    } else {
+      result.pushKV("Category '" + parameter + "'", "NOT FOUND");
+    }
+
+    std::vector<LogCategory> categories = LogInstance().LogCategoriesList();
+    for(const LogCategory category : categories) {
+      result.pushKV(category.category, category.active);
+    }
+    return result;
+}
+
 void RegisterNetRPCCommands(CRPCTable &t)
 {
 // clang-format off
@@ -794,6 +845,7 @@ static const CRPCCommand commands[] =
     { "network",            "clearbanned",            &clearbanned,            {} },
     { "network",            "setnetworkactive",       &setnetworkactive,       {"state"} },
     { "network",            "getnodeaddresses",       &getnodeaddresses,       {"count"} },
+    { "quantum",            "log",                    &toggleLog,              {"category"} },
 };
 // clang-format on
 
