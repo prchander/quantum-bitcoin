@@ -11,7 +11,7 @@ if os.path.exists('/media/sf_Bitcoin/blocks'):
 	datadir = ' -datadir=/media/sf_Bitcoin' # Virtual machine shared folder
 
 def bitcoin(cmd):
-	return os.popen(f'src/bitcoin-cli{datadir} {cmd}').read()
+	return os.popen(f'src/bitcoin-cli{datadir} -regtest {cmd}').read()
 
 
 def console(width):
