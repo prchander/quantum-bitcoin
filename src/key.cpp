@@ -14,7 +14,7 @@
 
 #include <logging.h>
 
-static secp256k1_context* secp256k1_context_sign = nullptr;
+//static secp256k1_context* secp256k1_context_sign = nullptr;
 
 /** These functions are taken from the libsecp256k1 distribution and are very ugly. */
 
