@@ -7,13 +7,11 @@
 
 #include <secp256k1.h>
 #include <secp256k1_recovery.h>
-#include <logging.h>
-
 
 namespace
 {
 /* Global secp256k1_context object used for verification. */
-secp256k1_context* secp256k1_context_verify `= nullptr;
+secp256k1_context* secp256k1_context_verify = nullptr;
 } // namespace
 
 /** This function is taken from the libsecp256k1 distribution and implements
@@ -26,8 +24,7 @@ secp256k1_context* secp256k1_context_verify `= nullptr;
  *  strict DER before being passed to this module, and we know it supports all
  *  violations present in the blockchain before that point.
  */
-static int ecdsa_signature_parse_der_lax(const secp256k1_context* ctx, secp256k1_ecdsa_signature* sig, const unsigned char *input, size_t inputlen) {
-    LogPrintf("%s","In pubkey.cpp pharse signature ecdsa");
+int ecdsa_signature_parse_der_lax(const secp256k1_context* ctx, secp256k1_ecdsa_signature* sig, const unsigned char *input, size_t inputlen) {
     size_t rpos, rlen, spos, slen;
     size_t pos = 0;
     size_t lenbyte;
@@ -170,7 +167,6 @@ static int ecdsa_signature_parse_der_lax(const secp256k1_context* ctx, secp256k1
 }
 
 bool CPubKey::Verify(const uint256 &hash, const std::vector<unsigned char>& vchSig) const {
-    LogPrintf("%s","In pubkey.cpp pubkey verify");
     if (!IsValid())
         return false;
     secp256k1_pubkey pubkey;
@@ -189,7 +185,6 @@ bool CPubKey::Verify(const uint256 &hash, const std::vector<unsigned char>& vchS
 }
 
 bool CPubKey::RecoverCompact(const uint256 &hash, const std::vector<unsigned char>& vchSig) {
-    LogPrintf("%s","In pubkey.cpp recover compact");
     if (vchSig.size() != COMPACT_SIGNATURE_SIZE)
         return false;
     int recid = (vchSig[0] - 27) & 3;
@@ -211,7 +206,6 @@ bool CPubKey::RecoverCompact(const uint256 &hash, const std::vector<unsigned cha
 }
 
 bool CPubKey::IsFullyValid() const {
-    LogPrintf("%s","In pubkey.cpp pubkey valid");
     if (!IsValid())
         return false;
     secp256k1_pubkey pubkey;
@@ -220,7 +214,6 @@ bool CPubKey::IsFullyValid() const {
 }
 
 bool CPubKey::Decompress() {
-    LogPrintf("%s","In pubkey.cpp pub key decompress");
     if (!IsValid())
         return false;
     secp256k1_pubkey pubkey;
@@ -236,7 +229,6 @@ bool CPubKey::Decompress() {
 }
 
 bool CPubKey::Derive(CPubKey& pubkeyChild, ChainCode &ccChild, unsigned int nChild, const ChainCode& cc) const {
-    LogPrintf("%s","In pubkey.cpp pubkey derive");
     assert(IsValid());
     assert((nChild >> 31) == 0);
     assert(size() == COMPRESSED_SIZE);
@@ -259,7 +251,6 @@ bool CPubKey::Derive(CPubKey& pubkeyChild, ChainCode &ccChild, unsigned int nChi
 }
 
 void CExtPubKey::Encode(unsigned char code[BIP32_EXTKEY_SIZE]) const {
-    LogPrintf("%s","In pubkey.cpp CExt pub key encode");
     code[0] = nDepth;
     memcpy(code+1, vchFingerprint, 4);
     code[5] = (nChild >> 24) & 0xFF; code[6] = (nChild >> 16) & 0xFF;
@@ -270,7 +261,6 @@ void CExtPubKey::Encode(unsigned char code[BIP32_EXTKEY_SIZE]) const {
 }
 
 void CExtPubKey::Decode(const unsigned char code[BIP32_EXTKEY_SIZE]) {
-    LogPrintf("%s","In pubkey.cpp CExt pubkey decode");
     nDepth = code[0];
     memcpy(vchFingerprint, code+1, 4);
     nChild = (code[5] << 24) | (code[6] << 16) | (code[7] << 8) | code[8];
@@ -279,7 +269,6 @@ void CExtPubKey::Decode(const unsigned char code[BIP32_EXTKEY_SIZE]) {
 }
 
 bool CExtPubKey::Derive(CExtPubKey &out, unsigned int _nChild) const {
-    LogPrintf("%s","In pubkey.cpp CExt derive");
     out.nDepth = nDepth + 1;
     CKeyID id = pubkey.GetID();
     memcpy(&out.vchFingerprint[0], &id, 4);
@@ -288,7 +277,6 @@ bool CExtPubKey::Derive(CExtPubKey &out, unsigned int _nChild) const {
 }
 
 /* static */ bool CPubKey::CheckLowS(const std::vector<unsigned char>& vchSig) {
-    LogPrintf("%s","In pubkey.cpp Cpubkey checklows");
     secp256k1_ecdsa_signature sig;
     assert(secp256k1_context_verify && "secp256k1_context_verify must be initialized to use CPubKey.");
     if (!ecdsa_signature_parse_der_lax(secp256k1_context_verify, &sig, vchSig.data(), vchSig.size())) {
@@ -298,7 +286,6 @@ bool CExtPubKey::Derive(CExtPubKey &out, unsigned int _nChild) const {
 }
 
 /* static */ int ECCVerifyHandle::refcount = 0;
-LogPrintf("%s","In pubkey.cpp ECC verify handle");
 
 ECCVerifyHandle::ECCVerifyHandle()
 {
