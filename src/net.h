@@ -51,11 +51,8 @@ static const bool DEFAULT_WHITELISTFORCERELAY = false;
 static const int TIMEOUT_INTERVAL = 20 * 60;
 /** Run the feeler connection loop once every 2 minutes or 120 seconds. **/
 static const int FEELER_INTERVAL = 120;
-/** The maximum number of new addresses to accumulate before announcing. */
-static const unsigned int MAX_ADDR_TO_SEND = 1000;
-// TODO: remove ADDRMAN_GETADDR_MAX and let the caller specify this limit with MAX_ADDR_TO_SEND.
-static_assert(MAX_ADDR_TO_SEND == ADDRMAN_GETADDR_MAX,
-    "Max allowed ADDR message size should be equal to the max number of records returned from AddrMan.");
+/** The maximum number of addresses from our addrman to return in response to a getaddr message. */
+static constexpr size_t MAX_ADDR_TO_SEND = 1000;
 /** Maximum length of incoming protocol messages (no message over 4 MB is currently acceptable). */
 static const unsigned int MAX_PROTOCOL_MESSAGE_LENGTH = 4 * 1000 * 1000;
 /** Maximum length of the user agent string in `version` message */
@@ -117,6 +114,59 @@ struct CSerializedNetMsg
     std::string m_type;
 };
 
+/** Different types of connections to a peer. This enum encapsulates the
+ * information we have available at the time of opening or accepting the
+ * connection. Aside from INBOUND, all types are initiated by us. */
+enum class ConnectionType {
+    /**
+     * Inbound connections are those initiated by a peer. This is the only
+     * property we know at the time of connection, until P2P messages are
+     * exchanged.
+     */
+    INBOUND,
+
+    /**
+     * These are the default connections that we use to connect with the
+     * network. There is no restriction on what is relayed- by default we relay
+     * blocks, addresses & transactions. We automatically attempt to open
+     * MAX_OUTBOUND_FULL_RELAY_CONNECTIONS using addresses from our AddrMan.
+     */
+    OUTBOUND_FULL_RELAY,
+
+
+    /**
+     * We open manual connections to addresses that users explicitly inputted
+     * via the addnode RPC, or the -connect command line argument. Even if a
+     * manual connection is misbehaving, we do not automatically disconnect or
+     * add it to our discouragement filter.
+     */
+    MANUAL,
+
+    /**
+     * Feeler connections are short lived connections used to increase the
+     * number of connectable addresses in our AddrMan. Approximately every
+     * FEELER_INTERVAL, we attempt to connect to a random address from the new
+     * table. If successful, we add it to the tried table.
+     */
+    FEELER,
+
+    /**
+     * We use block-relay-only connections to help prevent against partition
+     * attacks. By not relaying transactions or addresses, these connections
+     * are harder to detect by a third party, thus helping obfuscate the
+     * network topology. We automatically attempt to open
+     * MAX_BLOCK_RELAY_ONLY_CONNECTIONS using addresses from our AddrMan.
+     */
+    BLOCK_RELAY,
+
+    /**
+     * AddrFetch connections are short lived connections used to solicit
+     * addresses from peers. These are initiated to addresses submitted via the
+     * -seednode command line argument, or under certain conditions when the
+     * AddrMan is empty.
+     */
+    ADDR_FETCH,
+};
 
 class NetEventsInterface;
 class CConnman
@@ -201,7 +251,7 @@ public:
     bool GetNetworkActive() const { return fNetworkActive; };
     bool GetUseAddrmanOutgoing() const { return m_use_addrman_outgoing; };
     void SetNetworkActive(bool active);
-    void OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, CSemaphoreGrant *grantOutbound = nullptr, const char *strDest = nullptr, bool fOneShot = false, bool fFeeler = false, bool manual_connection = false, bool block_relay_only = false);
+    void OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, CSemaphoreGrant* grantOutbound, const char* strDest, ConnectionType conn_type);
     bool CheckIncomingNonce(uint64_t nonce);
 
     bool ForNode(NodeId id, std::function<bool(CNode* pnode)> func);
@@ -253,15 +303,15 @@ public:
     // Addrman functions
     void SetServices(const CService &addr, ServiceFlags nServices);
     void MarkAddressGood(const CAddress& addr);
-    void AddNewAddresses(const std::vector<CAddress>& vAddr, const CAddress& addrFrom, int64_t nTimePenalty = 0);
-    std::vector<CAddress> GetAddresses();
+    bool AddNewAddresses(const std::vector<CAddress>& vAddr, const CAddress& addrFrom, int64_t nTimePenalty = 0);
+    std::vector<CAddress> GetAddresses(size_t max_addresses, size_t max_pct);
     /**
      * Cache is used to minimize topology leaks, so it should
      * be used for all non-trusted calls, for example, p2p.
      * A non-malicious call (from RPC or a peer with addr permission) should
      * call the function without a parameter to avoid using the cache.
      */
-    std::vector<CAddress> GetAddresses(Network requestor_network);
+    std::vector<CAddress> GetAddresses(Network requestor_network, size_t max_addresses, size_t max_pct);
 
     // This allows temporarily exceeding m_max_outbound_full_relay, with the goal of finding
     // a peer that is better than all our current peers.
@@ -351,8 +401,8 @@ private:
     bool Bind(const CService& addr, unsigned int flags, NetPermissionFlags permissions);
     bool InitBinds(const std::vector<CService>& binds, const std::vector<NetWhitebindPermissions>& whiteBinds);
     void ThreadOpenAddedConnections();
-    void AddOneShot(const std::string& strDest);
-    void ProcessOneShot();
+    void AddAddrFetch(const std::string& strDest);
+    void ProcessAddrFetch();
     void ThreadOpenConnections(std::vector<std::string> connect);
     void ThreadMessageHandler();
     void AcceptConnection(const ListenSocket& hListenSocket);
@@ -373,7 +423,7 @@ private:
     CNode* FindNode(const CService& addr);
 
     bool AttemptToEvictConnection();
-    CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, bool manual_connection, bool block_relay_only);
+    CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, ConnectionType conn_type);
     void AddWhitelistPermissionFlags(NetPermissionFlags& flags, const CNetAddr &addr) const;
 
     void DeleteNode(CNode* pnode);
@@ -416,8 +466,8 @@ private:
     std::atomic<bool> fNetworkActive{true};
     bool fAddressesInitialized{false};
     CAddrMan addrman;
-    std::deque<std::string> vOneShots GUARDED_BY(cs_vOneShots);
-    RecursiveMutex cs_vOneShots;
+    std::deque<std::string> m_addr_fetches GUARDED_BY(m_addr_fetches_mutex);
+    RecursiveMutex m_addr_fetches_mutex;
     std::vector<std::string> vAddedNodes GUARDED_BY(cs_vAddedNodes);
     RecursiveMutex cs_vAddedNodes;
     std::vector<CNode*> vNodes GUARDED_BY(cs_vNodes);
@@ -611,6 +661,8 @@ public:
     bool fRelayTxes;
     int64_t nLastSend;
     int64_t nLastRecv;
+    int64_t nLastTXTime;
+    int64_t nLastBlockTime;
     int64_t nTimeConnected;
     int64_t nTimeOffset;
     std::string addrName;
@@ -798,12 +850,8 @@ public:
     }
     // This boolean is unusued in actual processing, only present for backward compatibility at RPC/QT level
     bool m_legacyWhitelisted{false};
-    bool fFeeler{false}; // If true this node is being used as a short lived feeler.
-    bool fOneShot{false};
-    bool m_manual_connection{false};
     bool fClient{false}; // set by version message
     bool m_limited_node{false}; //after BIP159, set by version message
-    const bool fInbound;
     std::atomic_bool fSuccessfullyConnected{false};
     // Setting fDisconnect to true will cause the node to be disconnected the
     // next time DisconnectNodes() runs
@@ -816,6 +864,66 @@ public:
     std::atomic_bool fPauseRecv{false};
     std::atomic_bool fPauseSend{false};
 
+    bool IsOutboundOrBlockRelayConn() const {
+        switch (m_conn_type) {
+            case ConnectionType::OUTBOUND_FULL_RELAY:
+            case ConnectionType::BLOCK_RELAY:
+                return true;
+            case ConnectionType::INBOUND:
+            case ConnectionType::MANUAL:
+            case ConnectionType::ADDR_FETCH:
+            case ConnectionType::FEELER:
+                return false;
+        } // no default case, so the compiler can warn about missing cases
+
+        assert(false);
+    }
+
+    bool IsFullOutboundConn() const {
+        return m_conn_type == ConnectionType::OUTBOUND_FULL_RELAY;
+    }
+
+    bool IsManualConn() const {
+        return m_conn_type == ConnectionType::MANUAL;
+    }
+
+    bool IsBlockOnlyConn() const {
+        return m_conn_type == ConnectionType::BLOCK_RELAY;
+    }
+
+    bool IsFeelerConn() const {
+        return m_conn_type == ConnectionType::FEELER;
+    }
+
+    bool IsAddrFetchConn() const {
+        return m_conn_type == ConnectionType::ADDR_FETCH;
+    }
+
+    bool IsInboundConn() const {
+        return m_conn_type == ConnectionType::INBOUND;
+    }
+
+    /* Whether we send addr messages over this connection */
+    bool RelayAddrsWithConn() const
+    {
+        return m_conn_type != ConnectionType::BLOCK_RELAY;
+    }
+
+    bool ExpectServicesFromConn() const {
+        switch (m_conn_type) {
+            case ConnectionType::INBOUND:
+            case ConnectionType::MANUAL:
+            case ConnectionType::FEELER:
+                return false;
+            case ConnectionType::OUTBOUND_FULL_RELAY:
+            case ConnectionType::BLOCK_RELAY:
+            case ConnectionType::ADDR_FETCH:
+                return true;
+        } // no default case, so the compiler can warn about missing cases
+
+        assert(false);
+    }
+
 protected:
     mapMsgCmdSize mapSendBytesPerMsgCmd;
     mapMsgCmdSize mapRecvBytesPerMsgCmd GUARDED_BY(cs_vRecv);
@@ -826,12 +934,10 @@ public:
 
     // flood relay
     std::vector<CAddress> vAddrToSend;
-    const std::unique_ptr<CRollingBloomFilter> m_addr_known;
+    std::unique_ptr<CRollingBloomFilter> m_addr_known{nullptr};
     bool fGetAddr{false};
     std::chrono::microseconds m_next_addr_send GUARDED_BY(cs_sendProcessing){0};
     std::chrono::microseconds m_next_local_addr_send GUARDED_BY(cs_sendProcessing){0};
-
-    bool IsAddrRelayPeer() const { return m_addr_known != nullptr; }
 
     // List of block ids we still have announce.
     // There is no final sorting before sending, as they are always sent immediately
@@ -872,8 +978,17 @@ public:
     // Used for headers announcements - unfiltered blocks to relay
     std::vector<uint256> vBlockHashesToAnnounce GUARDED_BY(cs_inventory);
 
-    // Block and TXN accept times
+    /** UNIX epoch time of the last block received from this peer that we had
+     * not yet seen (e.g. not already received from another peer), that passed
+     * preliminary validity checks and was saved to disk, even if we don't
+     * connect the block or it eventually fails connection. Used as an inbound
+     * peer eviction criterium in CConnman::AttemptToEvictConnection. */
     std::atomic<int64_t> nLastBlockTime{0};
+
+    /** UNIX epoch time of the last transaction received from this peer that we
+     * had not yet seen (e.g. not already received from another peer) and that
+     * was accepted into our mempool. Used as an inbound peer eviction criterium
+     * in CConnman::AttemptToEvictConnection. */
     std::atomic<int64_t> nLastTXTime{0};
 
     // Ping time measurement:
@@ -890,7 +1005,7 @@ public:
 
     std::set<uint256> orphan_work_set;
 
-    CNode(NodeId id, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, SOCKET hSocketIn, const CAddress &addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string &addrNameIn = "", bool fInboundIn = false, bool block_relay_only = false);
+    CNode(NodeId id, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, SOCKET hSocketIn, const CAddress &addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string &addrNameIn, ConnectionType conn_type_in);
     ~CNode();
     CNode(const CNode&) = delete;
     CNode& operator=(const CNode&) = delete;
@@ -898,6 +1013,7 @@ public:
 private:
     const NodeId id;
     const uint64_t nLocalHostNonce;
+    const ConnectionType m_conn_type;
 
     //! Services offered to this peer.
     //!

@@ -105,47 +105,24 @@ BOOST_AUTO_TEST_CASE(util_ParseHex)
 BOOST_AUTO_TEST_CASE(util_HexStr)
 {
     BOOST_CHECK_EQUAL(
-        HexStr(ParseHex_expected, ParseHex_expected + sizeof(ParseHex_expected)),
+        HexStr(ParseHex_expected),
         "04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f");
 
     BOOST_CHECK_EQUAL(
-        HexStr(ParseHex_expected + sizeof(ParseHex_expected),
-               ParseHex_expected + sizeof(ParseHex_expected)),
+        HexStr(Span<const unsigned char>(
+               ParseHex_expected + sizeof(ParseHex_expected),
+               ParseHex_expected + sizeof(ParseHex_expected))),
         "");
 
     BOOST_CHECK_EQUAL(
-        HexStr(ParseHex_expected, ParseHex_expected),
+        HexStr(Span<const unsigned char>(ParseHex_expected, ParseHex_expected)),
         "");
 
     std::vector<unsigned char> ParseHex_vec(ParseHex_expected, ParseHex_expected + 5);
 
     BOOST_CHECK_EQUAL(
-        HexStr(ParseHex_vec.rbegin(), ParseHex_vec.rend()),
-        "b0fd8a6704"
-    );
-
-    BOOST_CHECK_EQUAL(
-        HexStr(std::reverse_iterator<const uint8_t *>(ParseHex_expected),
-               std::reverse_iterator<const uint8_t *>(ParseHex_expected)),
-        ""
-    );
-
-    BOOST_CHECK_EQUAL(
-        HexStr(std::reverse_iterator<const uint8_t *>(ParseHex_expected + 1),
-               std::reverse_iterator<const uint8_t *>(ParseHex_expected)),
-        "04"
-    );
-
-    BOOST_CHECK_EQUAL(
-        HexStr(std::reverse_iterator<const uint8_t *>(ParseHex_expected + 5),
-               std::reverse_iterator<const uint8_t *>(ParseHex_expected)),
-        "b0fd8a6704"
-    );
-
-    BOOST_CHECK_EQUAL(
-        HexStr(std::reverse_iterator<const uint8_t *>(ParseHex_expected + 65),
-               std::reverse_iterator<const uint8_t *>(ParseHex_expected)),
-        "5f1df16b2b704c8a578d0bbaf74d385cde12c11ee50455f3c438ef4c3fbcf649b6de611feae06279a60939e028a8d65c10b73071a6f16719274855feb0fd8a6704"
+        HexStr(ParseHex_vec),
+        "04678afdb0"
     );
 }
 
@@ -573,57 +550,52 @@ BOOST_AUTO_TEST_CASE(util_ReadConfigStream)
     BOOST_CHECK(test_args.m_settings.ro_config["sec1"].size() == 3);
     BOOST_CHECK(test_args.m_settings.ro_config["sec2"].size() == 2);
 
-    BOOST_CHECK(test_args.m_settings.ro_config[""].count("a")
-                && test_args.m_settings.ro_config[""].count("b")
-                && test_args.m_settings.ro_config[""].count("ccc")
-                && test_args.m_settings.ro_config[""].count("d")
-                && test_args.m_settings.ro_config[""].count("fff")
-                && test_args.m_settings.ro_config[""].count("ggg")
-                && test_args.m_settings.ro_config[""].count("h")
-                && test_args.m_settings.ro_config[""].count("i")
-               );
-    BOOST_CHECK(test_args.m_settings.ro_config["sec1"].count("ccc")
-                && test_args.m_settings.ro_config["sec1"].count("h")
-                && test_args.m_settings.ro_config["sec2"].count("ccc")
-                && test_args.m_settings.ro_config["sec2"].count("iii")
-               );
+    BOOST_CHECK(test_args.m_settings.ro_config[""].count("a"));
+    BOOST_CHECK(test_args.m_settings.ro_config[""].count("b"));
+    BOOST_CHECK(test_args.m_settings.ro_config[""].count("ccc"));
+    BOOST_CHECK(test_args.m_settings.ro_config[""].count("d"));
+    BOOST_CHECK(test_args.m_settings.ro_config[""].count("fff"));
+    BOOST_CHECK(test_args.m_settings.ro_config[""].count("ggg"));
+    BOOST_CHECK(test_args.m_settings.ro_config[""].count("h"));
+    BOOST_CHECK(test_args.m_settings.ro_config[""].count("i"));
+    BOOST_CHECK(test_args.m_settings.ro_config["sec1"].count("ccc"));
+    BOOST_CHECK(test_args.m_settings.ro_config["sec1"].count("h"));
+    BOOST_CHECK(test_args.m_settings.ro_config["sec2"].count("ccc"));
+    BOOST_CHECK(test_args.m_settings.ro_config["sec2"].count("iii"));
 
-    BOOST_CHECK(test_args.IsArgSet("-a")
-                && test_args.IsArgSet("-b")
-                && test_args.IsArgSet("-ccc")
-                && test_args.IsArgSet("-d")
-                && test_args.IsArgSet("-fff")
-                && test_args.IsArgSet("-ggg")
-                && test_args.IsArgSet("-h")
-                && test_args.IsArgSet("-i")
-                && !test_args.IsArgSet("-zzz")
-                && !test_args.IsArgSet("-iii")
-               );
+    BOOST_CHECK(test_args.IsArgSet("-a"));
+    BOOST_CHECK(test_args.IsArgSet("-b"));
+    BOOST_CHECK(test_args.IsArgSet("-ccc"));
+    BOOST_CHECK(test_args.IsArgSet("-d"));
+    BOOST_CHECK(test_args.IsArgSet("-fff"));
+    BOOST_CHECK(test_args.IsArgSet("-ggg"));
+    BOOST_CHECK(test_args.IsArgSet("-h"));
+    BOOST_CHECK(test_args.IsArgSet("-i"));
+    BOOST_CHECK(!test_args.IsArgSet("-zzz"));
+    BOOST_CHECK(!test_args.IsArgSet("-iii"));
 
-    BOOST_CHECK(test_args.GetArg("-a", "xxx") == ""
-                && test_args.GetArg("-b", "xxx") == "1"
-                && test_args.GetArg("-ccc", "xxx") == "argument"
-                && test_args.GetArg("-d", "xxx") == "e"
-                && test_args.GetArg("-fff", "xxx") == "0"
-                && test_args.GetArg("-ggg", "xxx") == "1"
-                && test_args.GetArg("-h", "xxx") == "0"
-                && test_args.GetArg("-i", "xxx") == "1"
-                && test_args.GetArg("-zzz", "xxx") == "xxx"
-                && test_args.GetArg("-iii", "xxx") == "xxx"
-               );
+    BOOST_CHECK_EQUAL(test_args.GetArg("-a", "xxx"), "");
+    BOOST_CHECK_EQUAL(test_args.GetArg("-b", "xxx"), "1");
+    BOOST_CHECK_EQUAL(test_args.GetArg("-ccc", "xxx"), "argument");
+    BOOST_CHECK_EQUAL(test_args.GetArg("-d", "xxx"), "e");
+    BOOST_CHECK_EQUAL(test_args.GetArg("-fff", "xxx"), "0");
+    BOOST_CHECK_EQUAL(test_args.GetArg("-ggg", "xxx"), "1");
+    BOOST_CHECK_EQUAL(test_args.GetArg("-h", "xxx"), "0");
+    BOOST_CHECK_EQUAL(test_args.GetArg("-i", "xxx"), "1");
+    BOOST_CHECK_EQUAL(test_args.GetArg("-zzz", "xxx"), "xxx");
+    BOOST_CHECK_EQUAL(test_args.GetArg("-iii", "xxx"), "xxx");
 
     for (const bool def : {false, true}) {
-        BOOST_CHECK(test_args.GetBoolArg("-a", def)
-                     && test_args.GetBoolArg("-b", def)
-                     && !test_args.GetBoolArg("-ccc", def)
-                     && !test_args.GetBoolArg("-d", def)
-                     && !test_args.GetBoolArg("-fff", def)
-                     && test_args.GetBoolArg("-ggg", def)
-                     && !test_args.GetBoolArg("-h", def)
-                     && test_args.GetBoolArg("-i", def)
-                     && test_args.GetBoolArg("-zzz", def) == def
-                     && test_args.GetBoolArg("-iii", def) == def
-                   );
+        BOOST_CHECK(test_args.GetBoolArg("-a", def));
+        BOOST_CHECK(test_args.GetBoolArg("-b", def));
+        BOOST_CHECK(!test_args.GetBoolArg("-ccc", def));
+        BOOST_CHECK(!test_args.GetBoolArg("-d", def));
+        BOOST_CHECK(!test_args.GetBoolArg("-fff", def));
+        BOOST_CHECK(test_args.GetBoolArg("-ggg", def));
+        BOOST_CHECK(!test_args.GetBoolArg("-h", def));
+        BOOST_CHECK(test_args.GetBoolArg("-i", def));
+        BOOST_CHECK(test_args.GetBoolArg("-zzz", def) == def);
+        BOOST_CHECK(test_args.GetBoolArg("-iii", def) == def);
     }
 
     BOOST_CHECK(test_args.GetArgs("-a").size() == 1
@@ -659,13 +631,12 @@ BOOST_AUTO_TEST_CASE(util_ReadConfigStream)
     test_args.SelectConfigNetwork("sec1");
 
     // same as original
-    BOOST_CHECK(test_args.GetArg("-a", "xxx") == ""
-                && test_args.GetArg("-b", "xxx") == "1"
-                && test_args.GetArg("-fff", "xxx") == "0"
-                && test_args.GetArg("-ggg", "xxx") == "1"
-                && test_args.GetArg("-zzz", "xxx") == "xxx"
-                && test_args.GetArg("-iii", "xxx") == "xxx"
-               );
+    BOOST_CHECK_EQUAL(test_args.GetArg("-a", "xxx"), "");
+    BOOST_CHECK_EQUAL(test_args.GetArg("-b", "xxx"), "1");
+    BOOST_CHECK_EQUAL(test_args.GetArg("-fff", "xxx"), "0");
+    BOOST_CHECK_EQUAL(test_args.GetArg("-ggg", "xxx"), "1");
+    BOOST_CHECK_EQUAL(test_args.GetArg("-zzz", "xxx"), "xxx");
+    BOOST_CHECK_EQUAL(test_args.GetArg("-iii", "xxx"), "xxx");
     // d is overridden
     BOOST_CHECK(test_args.GetArg("-d", "xxx") == "eee");
     // section-specific setting
@@ -680,14 +651,13 @@ BOOST_AUTO_TEST_CASE(util_ReadConfigStream)
     test_args.SelectConfigNetwork("sec2");
 
     // same as original
-    BOOST_CHECK(test_args.GetArg("-a", "xxx") == ""
-                && test_args.GetArg("-b", "xxx") == "1"
-                && test_args.GetArg("-d", "xxx") == "e"
-                && test_args.GetArg("-fff", "xxx") == "0"
-                && test_args.GetArg("-ggg", "xxx") == "1"
-                && test_args.GetArg("-zzz", "xxx") == "xxx"
-                && test_args.GetArg("-h", "xxx") == "0"
-               );
+    BOOST_CHECK(test_args.GetArg("-a", "xxx") == "");
+    BOOST_CHECK(test_args.GetArg("-b", "xxx") == "1");
+    BOOST_CHECK(test_args.GetArg("-d", "xxx") == "e");
+    BOOST_CHECK(test_args.GetArg("-fff", "xxx") == "0");
+    BOOST_CHECK(test_args.GetArg("-ggg", "xxx") == "1");
+    BOOST_CHECK(test_args.GetArg("-zzz", "xxx") == "xxx");
+    BOOST_CHECK(test_args.GetArg("-h", "xxx") == "0");
     // section-specific setting
     BOOST_CHECK(test_args.GetArg("-iii", "xxx") == "2");
     // section takes priority for multiple values
@@ -1022,7 +992,7 @@ BOOST_FIXTURE_TEST_CASE(util_ArgsMerge, ArgsMergeTestingSetup)
 
     unsigned char out_sha_bytes[CSHA256::OUTPUT_SIZE];
     out_sha.Finalize(out_sha_bytes);
-    std::string out_sha_hex = HexStr(std::begin(out_sha_bytes), std::end(out_sha_bytes));
+    std::string out_sha_hex = HexStr(out_sha_bytes);
 
     // If check below fails, should manually dump the results with:
     //
@@ -1125,7 +1095,7 @@ BOOST_FIXTURE_TEST_CASE(util_ChainMerge, ChainMergeTestingSetup)
 
     unsigned char out_sha_bytes[CSHA256::OUTPUT_SIZE];
     out_sha.Finalize(out_sha_bytes);
-    std::string out_sha_hex = HexStr(std::begin(out_sha_bytes), std::end(out_sha_bytes));
+    std::string out_sha_hex = HexStr(out_sha_bytes);
 
     // If check below fails, should manually dump the results with:
     //

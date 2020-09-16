@@ -191,7 +191,7 @@ static UniValue getrawtransaction(const JSONRPCRequest& request)
     }
 
     uint256 hash_block;
-    const CTransactionRef tx = GetTransaction(blockindex, node.mempool, hash, Params().GetConsensus(), hash_block);
+    const CTransactionRef tx = GetTransaction(blockindex, node.mempool.get(), hash, Params().GetConsensus(), hash_block);
     if (!tx) {
         std::string errmsg;
         if (blockindex) {
@@ -627,7 +627,7 @@ static UniValue combinerawtransaction(const JSONRPCRequest& request)
                 {
                     {"txs", RPCArg::Type::ARR, RPCArg::Optional::NO, "The hex strings of partially signed transactions",
                         {
-                            {"hexstring", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "A transaction hash"},
+                            {"hexstring", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "A hex-encoded raw transaction"},
                         },
                         },
                 },
@@ -744,7 +744,7 @@ static UniValue signrawtransactionwithkey(const JSONRPCRequest& request)
                     {
                         {RPCResult::Type::STR_HEX, "hex", "The hex-encoded raw transaction with signature(s)"},
                         {RPCResult::Type::BOOL, "complete", "If the transaction has a complete set of signatures"},
-                        {RPCResult::Type::ARR, "errors", "Script verification errors (if there are any)",
+                        {RPCResult::Type::ARR, "errors", /* optional */ true, "Script verification errors (if there are any)",
                         {
                             {RPCResult::Type::OBJ, "", "",
                             {
@@ -1300,7 +1300,7 @@ UniValue combinepsbt(const JSONRPCRequest& request)
 
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << merged_psbt;
-    return EncodeBase64((unsigned char*)ssTx.data(), ssTx.size());
+    return EncodeBase64(MakeUCharSpan(ssTx));
 }
 
 UniValue finalizepsbt(const JSONRPCRequest& request)
@@ -1348,7 +1348,7 @@ UniValue finalizepsbt(const JSONRPCRequest& request)
 
     if (complete && extract) {
         ssTx << mtx;
-        result_str = HexStr(ssTx.str());
+        result_str = HexStr(ssTx);
         result.pushKV("hex", result_str);
     } else {
         ssTx << psbtx;
@@ -1435,7 +1435,7 @@ UniValue createpsbt(const JSONRPCRequest& request)
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << psbtx;
 
-    return EncodeBase64((unsigned char*)ssTx.data(), ssTx.size());
+    return EncodeBase64(MakeUCharSpan(ssTx));
 }
 
 UniValue converttopsbt(const JSONRPCRequest& request)
@@ -1502,7 +1502,7 @@ UniValue converttopsbt(const JSONRPCRequest& request)
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << psbtx;
 
-    return EncodeBase64((unsigned char*)ssTx.data(), ssTx.size());
+    return EncodeBase64(MakeUCharSpan(ssTx));
 }
 
 UniValue utxoupdatepsbt(const JSONRPCRequest& request)
@@ -1590,7 +1590,7 @@ UniValue utxoupdatepsbt(const JSONRPCRequest& request)
 
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << psbtx;
-    return EncodeBase64((unsigned char*)ssTx.data(), ssTx.size());
+    return EncodeBase64(MakeUCharSpan(ssTx));
 }
 
 UniValue joinpsbts(const JSONRPCRequest& request)
@@ -1683,7 +1683,7 @@ UniValue joinpsbts(const JSONRPCRequest& request)
 
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << shuffled_psbt;
-    return EncodeBase64((unsigned char*)ssTx.data(), ssTx.size());
+    return EncodeBase64(MakeUCharSpan(ssTx));
 }
 
 UniValue analyzepsbt(const JSONRPCRequest& request)
@@ -1722,7 +1722,7 @@ UniValue analyzepsbt(const JSONRPCRequest& request)
                     {RPCResult::Type::STR_AMOUNT, "estimated_feerate", /* optional */ true, "Estimated feerate of the final signed transaction in " + CURRENCY_UNIT + "/kB. Shown only if all UTXO slots in the PSBT have been filled"},
                     {RPCResult::Type::STR_AMOUNT, "fee", /* optional */ true, "The transaction fee paid. Shown only if all UTXO slots in the PSBT have been filled"},
                     {RPCResult::Type::STR, "next", "Role of the next person that this psbt needs to go to"},
-                    {RPCResult::Type::STR, "error", "Error message if there is one"},
+                    {RPCResult::Type::STR, "error", /* optional */ true, "Error message (if there is one)"},
                 }
             },
             RPCExamples {
@@ -1821,7 +1821,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "verifytxoutproof",             &verifytxoutproof,          {"proof"} },
 };
 // clang-format on
-
-    for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
-        t.appendCommand(commands[vcidx].name, &commands[vcidx]);
+    for (const auto& c : commands) {
+        t.appendCommand(c.name, &c);
+    }
 }

@@ -247,7 +247,7 @@ extern const char* CFCHECKPT;
  * txid.
  * @since protocol version 70016 as described by BIP 339.
  */
-extern const char *WTXIDRELAY;
+extern const char* WTXIDRELAY;
 }; // namespace NetMsgType
 
 /* Get a vector of all valid message types (see above) */
@@ -272,6 +272,9 @@ enum ServiceFlags : uint64_t {
     // NODE_WITNESS indicates that a node can be asked for blocks and transactions including
     // witness data.
     NODE_WITNESS = (1 << 3),
+    // NODE_COMPACT_FILTERS means the node will service basic block filter requests.
+    // See BIP157 and BIP158 for details on how this is implemented.
+    NODE_COMPACT_FILTERS = (1 << 6),
     // NODE_NETWORK_LIMITED means the same as NODE_NETWORK with the limitation of only
     // serving the last 288 (2 day) blocks
     // See BIP159 for details on how this is implemented.
@@ -371,9 +374,10 @@ public:
         READWRITEAS(CService, obj);
     }
 
-    ServiceFlags nServices{NODE_NONE};
     // disk and network only
     uint32_t nTime{TIME_INIT};
+
+    ServiceFlags nServices{NODE_NONE};
 };
 
 /** getdata message type flags */
@@ -394,7 +398,9 @@ enum GetDataMsg : uint32_t {
     MSG_CMPCT_BLOCK = 4,                              //!< Defined in BIP152
     MSG_WITNESS_BLOCK = MSG_BLOCK | MSG_WITNESS_FLAG, //!< Defined in BIP144
     MSG_WITNESS_TX = MSG_TX | MSG_WITNESS_FLAG,       //!< Defined in BIP144
-    MSG_FILTERED_WITNESS_BLOCK = MSG_FILTERED_BLOCK | MSG_WITNESS_FLAG,
+    // MSG_FILTERED_WITNESS_BLOCK is defined in BIP144 as reserved for future
+    // use and remains unused.
+    // MSG_FILTERED_WITNESS_BLOCK = MSG_FILTERED_BLOCK | MSG_WITNESS_FLAG,
 };
 
 /** inv message data */
@@ -402,7 +408,7 @@ class CInv
 {
 public:
     CInv();
-    CInv(int typeIn, const uint256& hashIn);
+    CInv(uint32_t typeIn, const uint256& hashIn);
 
     SERIALIZE_METHODS(CInv, obj) { READWRITE(obj.type, obj.hash); }
 
@@ -412,14 +418,24 @@ public:
     std::string ToString() const;
 
     // Single-message helper methods
-    bool IsMsgTx()        const { return type == MSG_TX; }
-    bool IsMsgWtx()       const { return type == MSG_WTX; }
-    bool IsMsgWitnessTx() const { return type == MSG_WITNESS_TX; }
+    bool IsMsgTx() const { return type == MSG_TX; }
+    bool IsMsgBlk() const { return type == MSG_BLOCK; }
+    bool IsMsgWtx() const { return type == MSG_WTX; }
+    bool IsMsgFilteredBlk() const { return type == MSG_FILTERED_BLOCK; }
+    bool IsMsgCmpctBlk() const { return type == MSG_CMPCT_BLOCK; }
+    bool IsMsgWitnessBlk() const { return type == MSG_WITNESS_BLOCK; }
 
     // Combined-message helper methods
-    bool IsGenTxMsg()     const { return type == MSG_TX || type == MSG_WTX || type == MSG_WITNESS_TX; }
+    bool IsGenTxMsg() const
+    {
+        return type == MSG_TX || type == MSG_WTX || type == MSG_WITNESS_TX;
+    }
+    bool IsGenBlkMsg() const
+    {
+        return type == MSG_BLOCK || type == MSG_FILTERED_BLOCK || type == MSG_CMPCT_BLOCK || type == MSG_WITNESS_BLOCK;
+    }
 
-    int type;
+    uint32_t type;
     uint256 hash;
 };
 

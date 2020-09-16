@@ -8,10 +8,6 @@
 #include <util/strencodings.h>
 #include <util/system.h>
 
-#ifndef WIN32
-# include <arpa/inet.h>
-#endif
-
 static std::atomic<bool> g_initial_block_download_completed(false);
 
 namespace NetMsgType {
@@ -163,7 +159,7 @@ CInv::CInv()
     hash.SetNull();
 }
 
-CInv::CInv(int typeIn, const uint256& hashIn) : type(typeIn), hash(hashIn) {}
+CInv::CInv(uint32_t typeIn, const uint256& hashIn) : type(typeIn), hash(hashIn) {}
 
 bool operator<(const CInv& a, const CInv& b)
 {
@@ -217,6 +213,7 @@ static std::string serviceFlagToStr(size_t bit)
     case NODE_GETUTXO:         return "GETUTXO";
     case NODE_BLOOM:           return "BLOOM";
     case NODE_WITNESS:         return "WITNESS";
+    case NODE_COMPACT_FILTERS: return "COMPACT_FILTERS";
     case NODE_NETWORK_LIMITED: return "NETWORK_LIMITED";
     // Not using default, so we get warned when a case is missing
     }

@@ -6,6 +6,10 @@
 #include <sync.h>
 #include <util/system.h>
 
+#ifdef HAVE_BOOST_PROCESS
+#include <boost/process.hpp>
+#endif // HAVE_BOOST_PROCESS
+
 #include <chainparamsbase.h>
 #include <util/strencodings.h>
 #include <util/string.h>
@@ -44,12 +48,6 @@
 #pragma warning(disable:4717)
 #endif
 
-#ifdef _WIN32_IE
-#undef _WIN32_IE
-#endif
-#define _WIN32_IE 0x0501
-
-#define WIN32_LEAN_AND_MEAN 1
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -1021,7 +1019,7 @@ bool FileCommit(FILE *file)
         return false;
     }
 #else
-    #if defined(__linux__) || defined(__NetBSD__)
+    #if HAVE_FDATASYNC
     if (fdatasync(fileno(file)) != 0 && errno != EINVAL) { // Ignore EINVAL for filesystems that don't support sync
         LogPrintf("%s: fdatasync failed: %d\n", __func__, errno);
         return false;
@@ -1160,6 +1158,43 @@ void runCommand(const std::string& strCommand)
         LogPrintf("runCommand error: system(%s) returned %d\n", strCommand, nErr);
 }
 #endif
+
+#ifdef HAVE_BOOST_PROCESS
+UniValue RunCommandParseJSON(const std::string& str_command, const std::string& str_std_in)
+{
+    namespace bp = boost::process;
+
+    UniValue result_json;
+    bp::opstream stdin_stream;
+    bp::ipstream stdout_stream;
+    bp::ipstream stderr_stream;
+
+    if (str_command.empty()) return UniValue::VNULL;
+
+    bp::child c(
+        str_command,
+        bp::std_out > stdout_stream,
+        bp::std_err > stderr_stream,
+        bp::std_in < stdin_stream
+    );
+    if (!str_std_in.empty()) {
+        stdin_stream << str_std_in << std::endl;
+    }
+    stdin_stream.pipe().close();
+
+    std::string result;
+    std::string error;
+    std::getline(stdout_stream, result);
+    std::getline(stderr_stream, error);
+
+    c.wait();
+    const int n_error = c.exit_code();
+    if (n_error) throw std::runtime_error(strprintf("RunCommandParseJSON error: process(%s) returned %d: %s\n", str_command, n_error, error));
+    if (!result_json.read(result)) throw std::runtime_error("Unable to parse JSON: " + result);
+
+    return result_json;
+}
+#endif // HAVE_BOOST_PROCESS
 
 void SetupEnvironment()
 {
