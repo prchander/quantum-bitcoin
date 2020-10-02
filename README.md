@@ -1,4 +1,4 @@
-Bitcoin Core integration/staging tree
+Qubit Coin Core integration/staging tree
 =====================================
 
 https://bitcoincore.org
