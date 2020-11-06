@@ -584,7 +584,7 @@ std::unique_ptr<SQLiteDatabase> MakeSQLiteDatabase(const fs::path& path, const D
         return db;
     } catch (const std::runtime_error& e) {
         status = DatabaseStatus::FAILED_LOAD;
-        error.original = e.what();
+        error = Untranslated(e.what());
         return nullptr;
     }
 }
@@ -619,8 +619,8 @@ bool IsSQLiteFile(const fs::path& path)
     file.close();
 
     // Check the magic, see https://sqlite.org/fileformat2.html
-    std::string magic_str(magic);
-    if (magic_str != std::string("SQLite format 3")) {
+    std::string magic_str(magic, 16);
+    if (magic_str != std::string("SQLite format 3", 16)) {
         return false;
     }
 

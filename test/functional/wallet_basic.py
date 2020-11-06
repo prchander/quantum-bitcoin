@@ -11,7 +11,6 @@ from test_framework.util import (
     assert_equal,
     assert_fee_amount,
     assert_raises_rpc_error,
-    connect_nodes,
 )
 from test_framework.wallet_util import test_address
 
@@ -32,9 +31,9 @@ class WalletTest(BitcoinTestFramework):
         self.setup_nodes()
         # Only need nodes 0-2 running at start of test
         self.stop_node(3)
-        connect_nodes(self.nodes[0], 1)
-        connect_nodes(self.nodes[1], 2)
-        connect_nodes(self.nodes[0], 2)
+        self.connect_nodes(0, 1)
+        self.connect_nodes(1, 2)
+        self.connect_nodes(0, 2)
         self.sync_all(self.nodes[0:3])
 
     def check_fee_amount(self, curr_balance, balance_with_fee, fee_per_byte, tx_size):
@@ -210,6 +209,8 @@ class WalletTest(BitcoinTestFramework):
         assert_equal(self.nodes[2].getbalance(), node_2_bal)
         node_0_bal = self.check_fee_amount(self.nodes[0].getbalance(), Decimal('20'), fee_per_byte, self.get_vsize(self.nodes[2].gettransaction(txid)['hex']))
 
+        self.log.info("Test sendmany")
+
         # Sendmany 10 BTC
         txid = self.nodes[2].sendmany('', {address: 10}, 0, "", [])
         self.nodes[2].generate(1)
@@ -226,9 +227,9 @@ class WalletTest(BitcoinTestFramework):
         assert_equal(self.nodes[2].getbalance(), node_2_bal)
         node_0_bal = self.check_fee_amount(self.nodes[0].getbalance(), node_0_bal + Decimal('10'), fee_per_byte, self.get_vsize(self.nodes[2].gettransaction(txid)['hex']))
 
-        # Sendmany with explicit fee (BTC/kB)
+        self.log.info("Test case-insensitive explicit fee rate (sendmany as BTC/kB)")
         # Throw if no conf_target provided
-        assert_raises_rpc_error(-8, "Selected estimate_mode requires a fee rate",
+        assert_raises_rpc_error(-8, "Selected estimate_mode bTc/kB requires a fee rate to be specified in conf_target",
             self.nodes[2].sendmany,
             amounts={ address: 10 },
             estimate_mode='bTc/kB')
@@ -252,9 +253,9 @@ class WalletTest(BitcoinTestFramework):
         node_0_bal += Decimal('10')
         assert_equal(self.nodes[0].getbalance(), node_0_bal)
 
-        # Sendmany with explicit fee (SAT/B)
+        self.log.info("Test case-insensitive explicit fee rate (sendmany as sat/B)")
         # Throw if no conf_target provided
-        assert_raises_rpc_error(-8, "Selected estimate_mode requires a fee rate",
+        assert_raises_rpc_error(-8, "Selected estimate_mode sat/b requires a fee rate to be specified in conf_target",
             self.nodes[2].sendmany,
             amounts={ address: 10 },
             estimate_mode='sat/b')
@@ -280,8 +281,14 @@ class WalletTest(BitcoinTestFramework):
         node_0_bal += Decimal('10')
         assert_equal(self.nodes[0].getbalance(), node_0_bal)
 
+        # Test setting explicit fee rate just below the minimum.
+        for unit, fee_rate in {"BTC/kB": 0.00000999, "sat/B": 0.99999999}.items():
+            self.log.info("Test sendmany raises 'fee rate too low' if conf_target {} and estimate_mode {} are passed".format(fee_rate, unit))
+            assert_raises_rpc_error(-6, "Fee rate (0.00000999 BTC/kB) is lower than the minimum fee rate setting (0.00001000 BTC/kB)",
+                self.nodes[2].sendmany, amounts={address: 10}, estimate_mode=unit, conf_target=fee_rate)
+
         self.start_node(3, self.nodes[3].extra_args)
-        connect_nodes(self.nodes[0], 3)
+        self.connect_nodes(0, 3)
         self.sync_all()
 
         # check if we can list zero value tx as available coins
@@ -316,9 +323,9 @@ class WalletTest(BitcoinTestFramework):
         self.start_node(0, ["-walletbroadcast=0"])
         self.start_node(1, ["-walletbroadcast=0"])
         self.start_node(2, ["-walletbroadcast=0"])
-        connect_nodes(self.nodes[0], 1)
-        connect_nodes(self.nodes[1], 2)
-        connect_nodes(self.nodes[0], 2)
+        self.connect_nodes(0, 1)
+        self.connect_nodes(1, 2)
+        self.connect_nodes(0, 2)
         self.sync_all(self.nodes[0:3])
 
         txid_not_broadcast = self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 2)
@@ -343,9 +350,9 @@ class WalletTest(BitcoinTestFramework):
         self.start_node(0)
         self.start_node(1)
         self.start_node(2)
-        connect_nodes(self.nodes[0], 1)
-        connect_nodes(self.nodes[1], 2)
-        connect_nodes(self.nodes[0], 2)
+        self.connect_nodes(0, 1)
+        self.connect_nodes(1, 2)
+        self.connect_nodes(0, 2)
         self.sync_blocks(self.nodes[0:3])
 
         self.nodes[0].generate(1)
@@ -413,15 +420,14 @@ class WalletTest(BitcoinTestFramework):
             self.nodes[0].generate(1)
             self.sync_all(self.nodes[0:3])
 
-            # send with explicit btc/kb fee
-            self.log.info("test explicit fee (sendtoaddress as btc/kb)")
+            self.log.info("Test case-insensitive explicit fee rate (sendtoaddress as BTC/kB)")
             self.nodes[0].generate(1)
             self.sync_all(self.nodes[0:3])
             prebalance = self.nodes[2].getbalance()
             assert prebalance > 2
             address = self.nodes[1].getnewaddress()
             # Throw if no conf_target provided
-            assert_raises_rpc_error(-8, "Selected estimate_mode requires a fee rate",
+            assert_raises_rpc_error(-8, "Selected estimate_mode BTc/Kb requires a fee rate to be specified in conf_target",
                 self.nodes[2].sendtoaddress,
                 address=address,
                 amount=1.0,
@@ -447,15 +453,15 @@ class WalletTest(BitcoinTestFramework):
             fee = prebalance - postbalance - Decimal('1')
             assert_fee_amount(fee, tx_size, Decimal('0.00002500'))
 
-            # send with explicit sat/b fee
             self.sync_all(self.nodes[0:3])
-            self.log.info("test explicit fee (sendtoaddress as sat/b)")
+
+            self.log.info("Test case-insensitive explicit fee rate (sendtoaddress as sat/B)")
             self.nodes[0].generate(1)
             prebalance = self.nodes[2].getbalance()
             assert prebalance > 2
             address = self.nodes[1].getnewaddress()
             # Throw if no conf_target provided
-            assert_raises_rpc_error(-8, "Selected estimate_mode requires a fee rate",
+            assert_raises_rpc_error(-8, "Selected estimate_mode SAT/b requires a fee rate to be specified in conf_target",
                 self.nodes[2].sendtoaddress,
                 address=address,
                 amount=1.0,
@@ -480,6 +486,12 @@ class WalletTest(BitcoinTestFramework):
             postbalance = self.nodes[2].getbalance()
             fee = prebalance - postbalance - Decimal('1')
             assert_fee_amount(fee, tx_size, Decimal('0.00002000'))
+
+            # Test setting explicit fee rate just below the minimum.
+            for unit, fee_rate in {"BTC/kB": 0.00000999, "sat/B": 0.99999999}.items():
+                self.log.info("Test sendtoaddress raises 'fee rate too low' if conf_target {} and estimate_mode {} are passed".format(fee_rate, unit))
+                assert_raises_rpc_error(-6, "Fee rate (0.00000999 BTC/kB) is lower than the minimum fee rate setting (0.00001000 BTC/kB)",
+                    self.nodes[2].sendtoaddress, address=address, amount=1, estimate_mode=unit, conf_target=fee_rate)
 
             # 2. Import address from node2 to node1
             self.nodes[1].importaddress(address_to_import)

@@ -82,6 +82,14 @@ P2P and network changes
   node using P2P relay. This version reduces the initial broadcast guarantees
   for wallet transactions submitted via P2P to a node running the wallet. (#18038)
 
+- The size of the set of transactions that peers have announced and we consider
+  for requests has been reduced from 100000 to 5000 (per peer), and further
+  announcements will be ignored when that limit is reached. If you need to dump
+  (very) large batches of transactions, exceptions can be made for trusted
+  peers using the "relay" network permission. For localhost for example it can
+  be enabled using the command line option `-whitelist=relay@127.0.0.1`.
+  (#19988)
+
 - The Tor onion service that is automatically created by setting the
   `-listenonion` configuration parameter will now be created as a Tor v3 service
   instead of Tor v2. The private key that was used for Tor v2 (if any) will be
@@ -284,15 +292,18 @@ Wallet
   changed from `-32601` (method not found) to `-18` (wallet not found).
   (#20101)
 
-### Default Wallet
+### Automatic wallet creation removed
 
-Bitcoin Core will no longer create an unnamed `""` wallet by default when no
-wallet is specified on the command line or in the configuration files. For
-backwards compatibility, if an unnamed `""` wallet already exists and would
-have been loaded previously, then it will still be loaded. Users without an
-unnamed `""` wallet and without any other wallets to be loaded on startup will
-be prompted to either choose a wallet to load, or to create a new wallet.
-(#15454)
+Bitcoin Core will no longer automatically create new wallets on startup. It will
+load existing wallets specified by `-wallet` options on the command line or in
+`bitcoin.conf` or `settings.json` files. And by default it will also load a
+top-level unnamed ("") wallet. However, if specified wallets don't exist,
+Bitcoin Core will now just log warnings instead of creating new wallets with
+new keys and addresses like previous releases did.
+
+New wallets can be created through the GUI (which has a more prominent create
+wallet option), through the `bitcoin-cli createwallet` or `bitcoin-wallet
+create` commands, or the `createwallet` RPC. (#15454)
 
 ### Experimental Descriptor Wallets
 
